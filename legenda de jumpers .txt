@@ -1,0 +1,10 @@
+ legenda de jumpers 
+
+sensores infra vermelhos 
+
+	vcc (vermrlho)
+	GND (preto)
+
+	analogico central (roxo)
+	analogico direita (branco)
+	analogico esquerda (marrom)
