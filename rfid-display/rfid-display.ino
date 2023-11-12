@@ -12,68 +12,79 @@
 #define SS_PIN 10
 #define RST_PIN 9
 #define col 16 //número de colunas do display LCD
-#define lin 2 //número de linhas do display LCD.
+#define lin 2  //número de linhas do display LCD.
 #define ende 0x27 //endereço I2C do display LCD.
 
 //inicialização do LCD e do módulo RFID
 LiquidCrystal_I2C lcd(ende, col, lin); //passando parâmetros para controlar o display
-MFRC522 rfid(SS_PIN, RST_PIN); //passando parâmetros para controlar o display
-MFRC522::MIFARE_Key key; //chave de autenticação padrão
+MFRC522 rfid(SS_PIN, RST_PIN);          //passando parâmetros para controlar o módulo RFID
+MFRC522::MIFARE_Key key;                //chave de autenticação padrão
 
-unsigned long startTime; //armazena o tempo inicial para controle de tempo
+unsigned long startTime;       //armazena o tempo inicial para controle de tempo
 const int tempoLimite = 30000; //define o limite de tempo (em milissegundos) para operações
 
 //lista de IDs de tags RFID permitidos
 const String tagsPermitidas[] = {
-  "ED:75:38:04",
-  "CC:07:39:04",
-  "D6:60:38:04",
-  "76:26:38:04"
-};
+    "ED:75:38:04",
+    "CC:07:39:04",
+    "D6:60:38:04",
+    "76:26:38:04"
+    };
 
 String ultimaTagLida = ""; //armazena o ID da última tag RFID lida
 
 //estrutura da pilha
-struct Pilha {
+struct Pilha
+{
   int dados[4]; //array para armazenar os dados
-  int topo; //indice do topo da pilha
+  int topo;      //indice do topo da pilha
 };
 
 Pilha pilha; //declaração da pilha
 
-void inicializarPilha() {
+void inicializarPilha()
+{
   //topo da pilha como -1, indicando que a pilha está vazia
   pilha.topo = -1; //inicializa o topo da pilha
 }
 
-void empilhar(int dado) {
+void empilhar(int dado)
+{
   //verifica se a pilha não está cheia (limite de 4 IDs) antes de empilhar o novo ID
-  if (pilha.topo < 3) {
+  if (pilha.topo < 3)
+  {
     pilha.topo++;
     pilha.dados[pilha.topo] = dado;
   }
 }
 
-int desempilhar() {
+int desempilhar()
+{
   //verifica se a pilha não está vazia antes de desempilhar
-  if (pilha.topo >= 0) {
+  if (pilha.topo >= 0)
+  {
     int dado = pilha.dados[pilha.topo];
     pilha.topo--;
     //retorna o ID desempilhado ou -1 se a pilha estiver vazia
     return dado;
-  } else {
+  }
+  else
+  {
     return -1; //pilha vazia
   }
 }
 
-unsigned long desempilhandoStartTime = 0; //tempo inicial durante o processo de desempilhamento
-const unsigned long desempilhandoDuration = 30000; //duração do processo de desempilhamento (em milissegundos)
-unsigned long tempoBloqueio = 0; // Variável para controlar o tempo de bloqueio após desempilhar (em milissegundos)
-const unsigned long tempoBloqueioDuracao = 1000; //5 segundos de bloqueio após desempilhar (em milissegundos)
+unsigned long desempilhandoStartTime = 0;             //tempo inicial durante o processo de desempilhamento
+const unsigned long desempilhandoDuration = 30000;    //duração do processo de desempilhamento (em milissegundos)
+unsigned long tempoBloqueio = 0;                       //variável para controlar o tempo de bloqueio após desempilhar (em milissegundos)
+const unsigned long tempoBloqueioDuracao = 1000;       //5 segundos de bloqueio após desempilhar (em milissegundos)
+unsigned long empilhandoStartTime = 0;                 //tempo inicial durante o processo de empilhamento
+const unsigned long empilhandoDuration = 10000;        //duração do processo de empilhamento (em milissegundos)
 
 String mensagemPadrao = "Aproxime a tag..."; //mensagem padrão exibida no LCD
 
-void setup() {
+void setup()
+{
   //inicialização do LCD, Serial, SPI e do módulo RFID
   lcd.init();
   lcd.backlight();
@@ -81,26 +92,29 @@ void setup() {
   Serial.begin(9600);
   SPI.begin();
   rfid.PCD_Init();
-  
+
   //exibição da mensagem inicial no LCD e no Serial Monitor
   Serial.println("Aproxime a tag...");
   lcd.setCursor(1, 0);
   lcd.print(mensagemPadrao);
-  
+
   //inicialização da pilha e do tempo inicial
   inicializarPilha();
   startTime = millis();
 }
 
-void loop() {
-  //obtem o tempo atual
+void loop()
+{
+  //obtém o tempo atual
   unsigned long tempoAtual = millis();
 
   //verifica se o tempo de bloqueio após desempilhar foi atingido
-  if (tempoAtual - tempoBloqueio >= tempoBloqueioDuracao) {
+  if (tempoAtual - tempoBloqueio >= tempoBloqueioDuracao)
+  {
     //permite a leitura das tags novamente
     //verifica se um novo cartão RFID está presente ou se o cartão atual foi lido com sucesso
-    if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial()) {
+    if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial())
+    {
       lcd.clear();
       lcd.setCursor(0, 0);
       lcd.print("Empilhando:");
@@ -109,9 +123,10 @@ void loop() {
       return;
     }
 
-    //le o identificador (UID) da tag
+    //lê o identificador (UID) da tag
     String strID = "";
-    for (byte i = 0; i < rfid.uid.size; i++) {
+    for (byte i = 0; i < rfid.uid.size; i++)
+    {
       strID +=
           (rfid.uid.uidByte[i] < 0x10 ? "0" : "") +
           String(rfid.uid.uidByte[i], HEX) + (i != rfid.uid.size - 1 ? ":" : "");
@@ -125,43 +140,66 @@ void loop() {
     Serial.print("Identificador (UID) da tag: ");
     Serial.println(strID);
 
-    // verifica se a tag é permitida ou repetida
+    //verifica se a tag é permitida ou repetida
     bool tagPermitida = false;
     bool tagRepetida = false;
 
     //verifica se a tag lida está na lista de tags permitidas e não é a mesma que foi lida anteriormente
-    if (strID != ultimaTagLida) {
-      for (int i = 0; i < sizeof(tagsPermitidas) / sizeof(tagsPermitidas[0]); i++) {
-        if (strID == tagsPermitidas[i]) {
+    if (strID != ultimaTagLida)
+    {
+      for (int i = 0; i < sizeof(tagsPermitidas) / sizeof(tagsPermitidas[0]); i++)
+      {
+        if (strID == tagsPermitidas[i])
+        {
           tagPermitida = true;
           break;
         }
       }
-    } else {
+    }
+    else
+    {
       tagRepetida = true;
     }
 
     //processa a tag lida
-    if (tagPermitida) {
-      if (pilha.topo < 3) {
-        empilhar(strtol(strID.c_str(), NULL, 16)); //converte a string hexadecimal para inteiro e empilha
-      }
-      ultimaTagLida = strID; //atualiza a última tag lida
-      tempoBloqueio = tempoAtual; //atualiza o tempo de bloqueio
-    } else if (tagRepetida) {
-      //exibe mensagem de "Tag já lida" no LCD e aguarda 2 segundos antes de voltar à mensagem padrão
-      lcd.setCursor(0, 0);
-      lcd.print("Tag já lida");
-      delay(2000);
-    } else {
-      //exibe mensagem de "Tag não permitida" no LCD e aguarda 2 segundos antes de voltar à mensagem padrão
-      lcd.setCursor(0, 0);
-      lcd.print("Tag não");
-      lcd.setCursor(0, 1);
-      lcd.print("permitida");
-      delay(2000);
+if (tagPermitida)
+{
+  if (strID != ultimaTagLida) //verifica se a tag atual é diferente da tag anterior
+  {
+    if (pilha.topo < 3)
+    {
+      empilhar(strtol(strID.c_str(), NULL, 16)); //converte a string hexadecimal para inteiro e empilha
     }
-  } else {
+    ultimaTagLida = strID; //atualiza a última tag lida
+    tempoBloqueio = tempoAtual; //atualiza o tempo de bloqueio
+  }
+  else
+  {
+    //exibe mensagem de "Tag já lida" no LCD e aguarda 2 segundos antes de voltar à mensagem padrão
+    lcd.setCursor(0, 0);
+    lcd.print("Tag ja lida");
+    delay(2000);
+  }
+}
+else if (tagRepetida)
+{
+  //exibe mensagem de "Tag já lida" no LCD e aguarda 2 segundos antes de voltar à mensagem padrão
+  lcd.setCursor(0, 0);
+  lcd.print("Tag ja lida");
+  delay(2000);
+}
+else
+{
+  //exibe mensagem de "Tag não permitida" no LCD e aguarda 2 segundos antes de voltar à mensagem padrão
+  lcd.setCursor(0, 0);
+  lcd.print("Tag nao");
+  lcd.setCursor(0, 1);
+  lcd.print("permitida");
+  delay(2000);
+}
+  }
+  else
+  {
     //aguarda o tempo de bloqueio antes de permitir a leitura das tags novamente
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -177,30 +215,56 @@ void loop() {
   lcd.setCursor(0, 1);
 
   //exibe os dados empilhados no LCD
-  if (pilha.topo >= 0) {
-    for (int i = 0; i <= pilha.topo; i++) {
+  if (pilha.topo >= 0)
+  {
+    for (int i = 0; i <= pilha.topo; i++)
+    {
       lcd.print(pilha.dados[i]);
       lcd.print(" ");
     }
 
     //quando a pilha estiver cheia, aguarda 2 segundos antes de desempilhar e exibir os números
-    if (pilha.topo == 3) {
-      delay(2000);
+    if (pilha.topo == 3)
+    {
+      empilhandoStartTime = tempoAtual; // Registra o tempo inicial de empilhamento
+
+      //mostra a mensagem "Empilhando:" junto com os números por 10 segundos
+      while (tempoAtual - empilhandoStartTime < empilhandoDuration)
+      {
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Empilhando:");
+        lcd.setCursor(0, 1);
+
+        for (int i = 0; i <= pilha.topo; i++)
+        {
+          lcd.print(pilha.dados[i]);
+          lcd.print(" ");
+        }
+
+        delay(500); //aguarda 500 milissegundos (0,5 segundos) entre cada exibição
+        tempoAtual = millis(); //atualiza o tempo atual
+      }
+
+      //desempilha e exibe os números
       lcd.clear();
       lcd.setCursor(0, 0);
       lcd.print("Desempilhando:");
       lcd.setCursor(0, 1);
-      
-      //desempilha e exibe os números
-      while (pilha.topo >= 0) {
+
+      while (pilha.topo >= 0)
+      {
         lcd.print(desempilhar());
         lcd.print(" ");
+        delay(500); //aguarda 500 milissegundos (0,5 segundos) entre cada número para tornar o desempilhamento mais dinâmico
       }
-      
-      //aguarda 5 segundos antes de voltar a empilhar novas tags
-      delay(5000);
+
+      // auarda 10 segundos antes de voltar a empilhar novas tags
+      delay(10000);
     }
-  } else {
+  }
+  else
+  {
     //quando a pilha estiver vazia, exibe mensagem de "Aproxime a tag" no LCD
     lcd.print("Aproxime a tag");
   }
@@ -212,8 +276,9 @@ void loop() {
   lcd.setCursor(0, 1);
   lcd.print("Aproxime a tag...");
 
-  //quando a pilha estiver vazia, exibe "Empilhando:" no LCD
-  if (pilha.topo == -1) {
+  // Quando a pilha estiver vazia, exibe "Empilhando:" no LCD
+  if (pilha.topo == -1)
+  {
     lcd.setCursor(0, 0);
     lcd.print("Empilhando:");
   }

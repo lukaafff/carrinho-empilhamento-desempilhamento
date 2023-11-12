@@ -1,6 +1,6 @@
 //definição dos Sensores Infravermelho
 #define sensorDIREITO A3
-#define sensorESQUERDO A0 
+#define sensorESQUERDO A2
 #define sensorCENTRAL A1 
 
 //variáveis para armazenar dados dos Sensores
@@ -26,10 +26,10 @@ int Dados_SensorCENTRAL;
 #define MotorEsquerdo_Atras 8
 
 // definição de Velocidades
-#define veloESQ1 200
-#define veloDIR1 185
+#define veloESQ1 250
+#define veloDIR1 170
 #define veloZero 0
-#define veloCurvE 185
+#define veloCurvE 220
 #define veloCurvD 170
 
 //função que faz o carrinho ficar parado
@@ -78,6 +78,17 @@ void ESQUERDA(){
   analogWrite(pinPotMotorDIR , veloZero);
 }
 
+// Função que faz o carrinho andar para trás
+void TRAS() {
+  digitalWrite(MotorDireito_Frente, LOW);
+  digitalWrite(MotorDireito_Atras, HIGH);
+  digitalWrite(MotorEsquerdo_Frente, LOW);
+  digitalWrite(MotorEsquerdo_Atras, HIGH);
+
+  analogWrite(pinPotMotorESQ, veloESQ1); 
+  analogWrite(pinPotMotorDIR, veloDIR1); 
+}
+
 void setup() {
   //configuração dos Modos de Pino
   // INPUT = Entrada de Dados
@@ -102,24 +113,25 @@ void setup() {
 }
 
 void loop() {
-  //leitura dos dados dos sensores
+  // leitura dos dados dos sensores
   Dados_SensorCENTRAL = analogRead(sensorCENTRAL);
   Dados_SensorDIREITO = analogRead(sensorDIREITO);
   Dados_SensorESQUERDO = analogRead(sensorESQUERDO);
 
-  //lógica para o movimento do carrinho baseado nos sensores
-  //caso o sensor central esteja na linha branca e os outros sensores na linha preta, siga em frente
+  // lógica para o movimento do carrinho baseado nos sensores
+  // caso o sensor central esteja na linha branca e os outros sensores na linha preta, siga em frente
   if (Dados_SensorCENTRAL <= limiar && Dados_SensorESQUERDO >= limiar && Dados_SensorDIREITO >= limiar) {
     FRENTE();
   }
 
-  //caso o sensor direito esteja na linha branca e os outros sensores na linha preta, vire à direita
-  if (Dados_SensorCENTRAL >= limiar && Dados_SensorESQUERDO <= limiar && Dados_SensorDIREITO >= limiar) {
+  // caso o sensor direito esteja na linha branca e os outros sensores na linha preta, vire à direita
+  else if (Dados_SensorCENTRAL >= limiar && Dados_SensorESQUERDO <= limiar && Dados_SensorDIREITO >= limiar) {
     DIREITA();
   }
 
-  //caso o sensor esquerdo esteja na linha branca e os outros sensores na linha preta, vire à esquerda
-  if (Dados_SensorCENTRAL >= limiar && Dados_SensorESQUERDO >= limiar && Dados_SensorDIREITO <= limiar) {
+  // caso o sensor esquerdo esteja na linha branca e os outros sensores na linha preta, vire à esquerda
+  else if (Dados_SensorCENTRAL >= limiar && Dados_SensorESQUERDO >= limiar && Dados_SensorDIREITO <= limiar) {
     ESQUERDA(); 
   }
 }
+
