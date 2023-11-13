@@ -1,3 +1,7 @@
+#include <Wire.h>
+#include <hd44780.h>						// main hd44780 header
+#include <hd44780ioClass/hd44780_I2Cexp.h>
+
 //inclusão das bibliotecas necessárias para o programa
 //controlar o display LCD usando I2C
 #include <LiquidCrystal_I2C.h>
@@ -16,9 +20,11 @@
 #define ende 0x27 //endereço I2C do display LCD.
 
 //inicialização do LCD e do módulo RFID
-LiquidCrystal_I2C lcd(ende, col, lin); //passando parâmetros para controlar o display
+LiquidCrystal_I2C lcdd(ende, col, lin); //passando parâmetros para controlar o display
 MFRC522 rfid(SS_PIN, RST_PIN);          //passando parâmetros para controlar o módulo RFID
 MFRC522::MIFARE_Key key;                //chave de autenticação padrão
+
+hd44780_I2Cexp lcd;
 
 unsigned long startTime;       //armazena o tempo inicial para controle de tempo
 const int tempoLimite = 30000; //define o limite de tempo (em milissegundos) para operações
@@ -81,7 +87,7 @@ const unsigned long tempoBloqueioDuracao = 1000;       //5 segundos de bloqueio 
 unsigned long empilhandoStartTime = 0;                 //tempo inicial durante o processo de empilhamento
 const unsigned long empilhandoDuration = 10000;        //duração do processo de empilhamento (em milissegundos)
 
-String mensagemPadrao = "Aproxime a tag..."; //mensagem padrão exibida no LCD
+String mensagemPadrao = "Buscando a tag..."; //mensagem padrão exibida no LCD
 
 void setup()
 {
@@ -94,13 +100,15 @@ void setup()
   rfid.PCD_Init();
 
   //exibição da mensagem inicial no LCD e no Serial Monitor
-  Serial.println("Aproxime a tag...");
+  Serial.println("Buscando a tag...");
   lcd.setCursor(1, 0);
   lcd.print(mensagemPadrao);
 
   //inicialização da pilha e do tempo inicial
   inicializarPilha();
   startTime = millis();
+
+  lcd.lineWrap();
 }
 
 void loop()
@@ -117,8 +125,8 @@ void loop()
     {
       lcd.clear();
       lcd.setCursor(0, 0);
-      lcd.print("Empilhando:");
-      lcd.setCursor(0, 1);
+      lcd.print("testando:");
+      //lcd.setCursor(0, 1);
       lcd.print(mensagemPadrao);
       return;
     }
@@ -192,9 +200,7 @@ else
 {
   //exibe mensagem de "Tag não permitida" no LCD e aguarda 2 segundos antes de voltar à mensagem padrão
   lcd.setCursor(0, 0);
-  lcd.print("Tag nao");
-  lcd.setCursor(0, 1);
-  lcd.print("permitida");
+  lcd.print("Tag nao permitida");
   delay(2000);
 }
   }
@@ -204,15 +210,15 @@ else
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Aguarde...");
-    lcd.setCursor(0, 1);
+    //lcd.setCursor(0, 1);
     lcd.print((tempoBloqueio + tempoBloqueioDuracao - tempoAtual) / 1000);
     lcd.print("s");
   }
 
   //exibe o estado atual da pilha no LCD
   lcd.setCursor(0, 0);
-  lcd.print("Empilhando:");
-  lcd.setCursor(0, 1);
+  lcd.print("Empilhar:");
+  //lcd.setCursor(0, 1);
 
   //exibe os dados empilhados no LCD
   if (pilha.topo >= 0)
@@ -233,8 +239,8 @@ else
       {
         lcd.clear();
         lcd.setCursor(0, 0);
-        lcd.print("Empilhando:");
-        lcd.setCursor(0, 1);
+        lcd.print("Empilhar:");
+        //lcd.setCursor(0, 1);
 
         for (int i = 0; i <= pilha.topo; i++)
         {
@@ -249,8 +255,8 @@ else
       //desempilha e exibe os números
       lcd.clear();
       lcd.setCursor(0, 0);
-      lcd.print("Desempilhando:");
-      lcd.setCursor(0, 1);
+      lcd.print("Desempilhar:");
+      //lcd.setCursor(0, 1);
 
       while (pilha.topo >= 0)
       {
@@ -265,21 +271,21 @@ else
   }
   else
   {
-    //quando a pilha estiver vazia, exibe mensagem de "Aproxime a tag" no LCD
-    lcd.print("Aproxime a tag");
+    //quando a pilha estiver vazia, exibe mensagem de "Buscando a tag" no LCD
+    lcd.print("Buscando a tag");
   }
 
   rfid.PICC_HaltA();
   delay(2000); //aguarda 2 segundos antes de exibir a mensagem novamente
 
   //exibe mensagem padrão no LCD
-  lcd.setCursor(0, 1);
-  lcd.print("Aproxime a tag...");
+  //lcd.setCursor(0, 1);
+  lcd.print("Buscando a tag...");
 
   // Quando a pilha estiver vazia, exibe "Empilhando:" no LCD
   if (pilha.topo == -1)
   {
     lcd.setCursor(0, 0);
-    lcd.print("Empilhando:");
+    lcd.print("Empilhar:");
   }
 }

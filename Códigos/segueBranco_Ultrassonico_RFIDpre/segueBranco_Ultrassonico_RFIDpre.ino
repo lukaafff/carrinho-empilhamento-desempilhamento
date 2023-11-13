@@ -1,4 +1,8 @@
 //inclusão das bibliotecas necessárias para o programa
+#include <Wire.h>
+#include <hd44780.h>						// main hd44780 header
+#include <hd44780ioClass/hd44780_I2Cexp.h>
+
 //controlar o display LCD usando I2C
 #include <LiquidCrystal_I2C.h>
 
@@ -10,8 +14,8 @@
 
 // Definição dos Sensores Infravermelho
 #define sensorDIREITO A2
-#define sensorESQUERDO A0
 #define sensorCENTRAL A1
+#define sensorESQUERDO A0
 
 // Variáveis para armazenar dados dos Sensores
 int Dados_SensorDIREITO;
@@ -36,11 +40,13 @@ int Dados_SensorCENTRAL;
 #define MotorEsquerdo_Atras 8
 
 // Definição de Velocidades
-#define veloESQ1 250
-#define veloDIR1 170
+#define veloESQ1 190
+#define veloDIR1 130
 #define veloZero 0
 #define veloCurvE 220
 #define veloCurvD 170
+#define veloESQ2 0
+#define veloDIR2 0
 
 // Função que faz o carrinho ficar parado
 void PARADO()
@@ -52,7 +58,22 @@ void PARADO()
 
   analogWrite(pinPotMotorESQ, veloZero);
   analogWrite(pinPotMotorDIR, veloZero);
+  Serial.println("parado");
 }
+
+// Função que faz o carrinho andar para frente com velociodade reduzida 
+void FRENTE2()
+{
+  digitalWrite(MotorDireito_Frente, HIGH);
+  digitalWrite(MotorDireito_Atras, LOW);
+  digitalWrite(MotorEsquerdo_Frente, HIGH);
+  digitalWrite(MotorEsquerdo_Atras, LOW);
+
+  analogWrite(pinPotMotorESQ, 150);
+  analogWrite(pinPotMotorDIR, 110);
+  Serial.println("frente");
+}
+
 
 // Função que faz o carrinho andar para frente
 void FRENTE()
@@ -64,19 +85,7 @@ void FRENTE()
 
   analogWrite(pinPotMotorESQ, veloESQ1);
   analogWrite(pinPotMotorDIR, veloDIR1);
-}
-
-// Função que faz o carrinho andar para a direita
-// Para virar à direita, o motor direito é desativado e o da esquerda é ativado
-void DIREITA()
-{
-  digitalWrite(MotorDireito_Frente, HIGH);
-  digitalWrite(MotorDireito_Atras, LOW);
-  digitalWrite(MotorEsquerdo_Frente, HIGH);
-  digitalWrite(MotorEsquerdo_Atras, LOW);
-
-  analogWrite(pinPotMotorESQ, veloZero);
-  analogWrite(pinPotMotorDIR, veloCurvD);
+  Serial.println("frente");
 }
 
 // Função que faz o carrinho andar para a esquerda
@@ -88,8 +97,22 @@ void ESQUERDA()
   digitalWrite(MotorEsquerdo_Frente, HIGH);
   digitalWrite(MotorEsquerdo_Atras, LOW);
 
+  analogWrite(pinPotMotorESQ, veloESQ2);
+  analogWrite(pinPotMotorDIR, veloCurvD);
+  Serial.println("esquerda");
+}
+
+// Função que faz o carrinho andar para a direita
+// Para virar à direita, o motor direito é desativado e o da esquerda é ativado
+void DIREITA()
+{
+  digitalWrite(MotorDireito_Frente, HIGH);
+  digitalWrite(MotorDireito_Atras, LOW);
+  digitalWrite(MotorEsquerdo_Frente, HIGH);
+  digitalWrite(MotorEsquerdo_Atras, LOW);
+
   analogWrite(pinPotMotorESQ, veloCurvE);
-  analogWrite(pinPotMotorDIR, veloZero);
+  analogWrite(pinPotMotorDIR, veloDIR2);
 }
 
 // Função que faz o carrinho andar para trás
@@ -122,7 +145,8 @@ bool carrinhoParado = false;  // Variável de controle para verificar se o carri
 #define ende 0x27 //endereço I2C do display LCD.
 
 //inicialização do LCD e do módulo RFID
-LiquidCrystal_I2C lcd(ende, col, lin); //passando parâmetros para controlar o display
+//LiquidCrystal_I2C lcd(ende, col, lin); //passando parâmetros para controlar o display
+hd44780_I2Cexp lcd; //controlaar display
 MFRC522 rfid(SS_PIN, RST_PIN);          //passando parâmetros para controlar o módulo RFID
 MFRC522::MIFARE_Key key;                //chave de autenticação padrão
 
@@ -187,7 +211,7 @@ const unsigned long tempoBloqueioDuracao = 1000;       //5 segundos de bloqueio 
 unsigned long empilhandoStartTime = 0;                 //tempo inicial durante o processo de empilhamento
 const unsigned long empilhandoDuration = 10000;        //duração do processo de empilhamento (em milissegundos)
 
-String mensagemPadrao = "Aproxime a tag..."; //mensagem padrão exibida no LCD
+String mensagemPadrao = "Buscando..."; //mensagem padrão exibida no LCD
 
 bool modoMovimento = true; // Variável de estado para alternar entre movimento e RFID
 
@@ -218,14 +242,15 @@ void setup()
 
   //inicialização do LCD, Serial, SPI e do módulo RFID
   lcd.init();
+  lcd.lineWrap(); //pular para a linah debaixo 
   lcd.backlight();
   lcd.clear();
   SPI.begin();
   rfid.PCD_Init();
 
   //exibição da mensagem inicial no LCD e no Serial Monitor
-  Serial.println("Aproxime a tag...");
-  lcd.setCursor(1, 0);
+  Serial.println("Buscando...");
+  lcd.setCursor(0, 0);
   lcd.print(mensagemPadrao);
 
   //inicialização da pilha e do tempo inicial
@@ -259,18 +284,21 @@ void loop()
   if (Dados_SensorCENTRAL <= limiar && Dados_SensorESQUERDO >= limiar && Dados_SensorDIREITO >= limiar)
   {
     FRENTE();
+    Serial.println("frente");
   }
 
   // Caso o sensor direito esteja na linha branca e os outros sensores na linha preta, vire à direita
   if (Dados_SensorCENTRAL >= limiar && Dados_SensorESQUERDO <= limiar && Dados_SensorDIREITO >= limiar)
   {
     DIREITA();
+    Serial.println("direita");
   }
 
   // Caso o sensor esquerdo esteja na linha branca e os outros sensores na linha preta, vire à esquerda
   if (Dados_SensorCENTRAL >= limiar && Dados_SensorESQUERDO >= limiar && Dados_SensorDIREITO <= limiar)
   {
     ESQUERDA();
+    Serial.println("esquerda");
   }
 
    // Lógica para o ultrassônico - se a distância for menor ou igual a 17 cm, o carrinho para
@@ -287,23 +315,181 @@ void loop()
   Serial.print(distancia);
   Serial.println(" cm"); */
 
-  // Se a distância for menor ou igual a 17 cm, pare o carrinho
-  if (distancia <= 17)
+  // Se a distância for menor ou igual a 20 cm, pare o carrinho
+  if (distancia <= 20)
   {
+    delay(100);
     PARADO();
     Serial.println("Carrinho Parado!");
     carrinhoParado = true;  // Carrinho está parado
+
+    //RFID
+    //verifica se o tempo de bloqueio após desempilhar foi atingido
+  if (tempoAtual - tempoBloqueio >= tempoBloqueioDuracao)
+  {
+    //permite a leitura das tags novamente
+    //verifica se um novo cartão RFID está presente ou se o cartão atual foi lido com sucesso
+    if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial())
+    {
+      return;
+    }
+    //lê o identificador (UID) da tag
+    String strID = "";
+    for (byte i = 0; i < rfid.uid.size; i++)
+    {
+      strID +=
+          (rfid.uid.uidByte[i] < 0x10 ? "0" : "") +
+          String(rfid.uid.uidByte[i], HEX) + (i != rfid.uid.size - 1 ? ":" : "");
+    }
+
+    //converte o UID para letras maiúsculas
+    strID.toUpperCase();
+
+    //limpa o LCD e exibe o UID da tag no Serial Monitor
+    lcd.clear();
+    Serial.print("Identificador (UID) da tag: ");
+    Serial.println(strID);
+
+    //verifica se a tag é permitida ou repetida
+    bool tagPermitida = false;
+    bool tagRepetida = false;
+
+    //verifica se a tag lida está na lista de tags permitidas e não é a mesma que foi lida anteriormente
+    if (strID != ultimaTagLida)
+    {
+      for (int i = 0; i < sizeof(tagsPermitidas) / sizeof(tagsPermitidas[0]); i++)
+      {
+        if (strID == tagsPermitidas[i])
+        {
+          tagPermitida = true;
+          break;
+        }
+      }
+    }
+    else
+    {
+      tagRepetida = true;
+    }
+
+    //processa a tag lida
+if (tagPermitida)
+{
+  if (strID != ultimaTagLida) //verifica se a tag atual é diferente da tag anterior
+  {
+    if (pilha.topo < 3)
+    {
+      empilhar(strtol(strID.c_str(), NULL, 16)); //converte a string hexadecimal para inteiro e empilha
+    }
+    ultimaTagLida = strID; //atualiza a última tag lida
+    tempoBloqueio = tempoAtual; //atualiza o tempo de bloqueio
+  }
+}
+else if (tagRepetida)
+{
+  //exibe mensagem de "Tag já lida" no LCD e aguarda 2 segundos antes de voltar à mensagem padrão
+  lcd.setCursor(0, 0);
+  lcd.print("Tag ja lida");
+  delay(2000);
+}
+else
+{
+  //exibe mensagem de "Tag não permitida" no LCD e aguarda 2 segundos antes de voltar à mensagem padrão
+  lcd.setCursor(0, 0);
+  lcd.print("Tag nao permitida");
+  delay(2000);
+}
+  }
+
+  //exibe o estado atual da pilha no LCD
+  lcd.setCursor(0, 0);
+  lcd.print("Empilhar:");
+
+  //exibe os dados empilhados no LCD
+  if (pilha.topo >= 0)
+  {
+    for (int i = 0; i <= pilha.topo; i++)
+    {
+      lcd.print(pilha.dados[i]);
+      lcd.print(" ");
+      delay(1000);
+      FRENTE();
+      delay(100);
+    }
+
+    //quando a pilha estiver cheia, aguarda 2 segundos antes de desempilhar e exibir os números
+    if (pilha.topo == 3)
+    {
+      empilhandoStartTime = tempoAtual; // Registra o tempo inicial de empilhamento
+
+      //mostra a mensagem "Empilhando:" junto com os números por 10 segundos
+      while (tempoAtual - empilhandoStartTime < empilhandoDuration)
+      {
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Empilhar:");
+
+        for (int i = 0; i <= pilha.topo; i++)
+        {
+          lcd.print(pilha.dados[i]);
+          lcd.print(" ");
+        }
+
+        delay(500); //aguarda 500 milissegundos (0,5 segundos) entre cada exibição
+        tempoAtual = millis(); //atualiza o tempo atual
+      }
+
+      //desempilha e exibe os números
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Desempilhar:");
+
+      while (pilha.topo >= 0)
+      {
+        lcd.print(desempilhar());
+        lcd.print(" ");
+        delay(500); //aguarda 500 milissegundos (0,5 segundos) entre cada número para tornar o desempilhamento mais dinâmico
+        //lcd.print(mensagemPadrao);
+      }
+
+      // auarda 10 segundos antes de voltar a empilhar novas tags
+      delay(10000);
+      FRENTE2();
+      delay(10);
+    }
   }
   else
   {
-    // Se o carrinho estava parado e a distância é maior que 17 cm, retome o movimento
+    //quando a pilha estiver vazia, exibe mensagem de "Buscando a tag" no LCD
+    lcd.print(mensagemPadrao);
+  }
+
+  rfid.PICC_HaltA();
+  //delay(2000); //aguarda 2 segundos antes de exibir a mensagem novamente
+
+  //exibe mensagem padrão no LCD
+  //lcd.setCursor(0, 1);
+  //lcd.print(mensagemPadrao);
+
+  // Quando a pilha estiver vazia, exibe "Empilhando:" no LCD
+  if (pilha.topo == -1)
+  {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print(mensagemPadrao);
+  }
+
+  }
+  else
+  {
+    // Se o carrinho estava parado e a distância é maior que 20 cm, retome o movimento
     if (carrinhoParado)
     {
       carrinhoParado = false;
       // Adicione a lógica de movimento desejada (por exemplo, retomar a frente)
-      FRENTE();
+      FRENTE2();
+      //Serial.println("frente");
     }
   }
 
-  delay(500); // Aguarda 0.5 segundos antes da próxima leitura
+  //delay(500); // Aguarda 0.5 segundos antes da próxima leitura
 }
